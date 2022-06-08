@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Origami Salami</title>
+    <script src="phaser.min.js"></script>
+    </script>
+
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+
+        #endGame {
+            display: none;
+            font-size: 100px;
+            color: red;
+            padding-top: 230px;
+            padding-left: 110px;
+            position: absolute;
+            z-index: 1
+        }
+    </style>
+</head>
+
+<body>
+    <script type="text/javascript">
+
+
+        class menuDebut extends Phaser.Scene {
+            constructor() {
+                super("menuDebut");
+            }
+
+
+            preload() {
+                this.load.image("menuDebut", "assets/start_menu.png");
+                this.load.image("menuBouton", "assets/start.png");
+            }
+            create() {
+                this.add.image(this.cameras.main.width / 2, this.cameras.main.height / 2, "menuDebut").setScale(0.65);
+
+
+
+                this.cursors = this.input.keyboard.createCursorKeys();
+
+                var startButton = this.add.image(400, 360, 'menuBouton').setScale(1.2).setInteractive();
+
+                startButton.on('pointerdown', function (pointer) {
+
+                    this.scene.scene.start("menuDebut", {
+                        pv: 3,
+                        invincible: true
+                    })
+
+                });
+            }
+
+            update() {
+                if (this.cursors.space.isDown) {
+                    this.scene.start("Jeu");
+                }
+            }
+        }
+
+
+
+        class Jeu extends Phaser.Scene {
+            constructor() {
+                super("Jeu");
+
+            }
+
+
+            preload() {
+                this.load.image("Phaser_Block", "assets/block.png");
+
+                this.load.tilemapTiledJSON("carte", "map.json");
+                
+
+            //characters
+                this.load.spritesheet('kiwi', 'assets/kiwi.png',
+                    { frameWidth: 128, frameHeight: 128 });
+
+                this.load.spritesheet('boat', 'assets/boat.png',
+                    { frameWidth: 128, frameHeight: 128 });
+
+
+                this.load.spritesheet('plane', 'assets/plane.png',
+                    { frameWidth: 128, frameHeight: 128 });
+
+
+
+                this.load.spritesheet('shield', 'assets/shield.png',
+                    { frameWidth: 128, frameHeight: 128 });
+
+                
+            //powers
+                this.load.spritesheet('boatPower', 'assets/boatPower.png',
+                    { frameWidth: 128, frameHeight: 128 });
+
+
+                this.load.spritesheet('planePower', 'assets/planePower.png',
+                    { frameWidth: 128, frameHeight: 128 });
+
+
+                this.load.spritesheet('shieldPower', 'assets/shieldPower.png',
+                    { frameWidth: 128, frameHeight: 128 });
+
+ 
+            //enemies
+                this.load.spritesheet('mouse', 'assets/mouse.png',
+                    { frameWidth: 128, frameHeight: 80 });
+
+                
+                this.load.spritesheet('bat', 'assets/bat.png',
+                    { frameWidth: 144, frameHeight: 112 });
+
+
+                this.load.spritesheet('man','assets/man.png',
+                { frameWidth: 256, frameHeight: 128 });
+
+                this.load.spritesheet('health_bar anim','assets/health_bar anim.png',
+                { frameWidth: 96, frameHeight: 24 });
+
+
+            //audio
+                this.load.audio("music", ["assets/music.mp3"]);
+                
+                this.load.audio("jump", ["assets/jump.mp3"]);
+                
+
+
+            }
+
+
+            create() {
+
+                const carteDuNiveau = this.add.tilemap("carte");
+
+                // importer les TileSet 
+
+                const tilesetGround = carteDuNiveau.addTilesetImage(
+                    "block",
+                    "Phaser_Block"
+                );
+
+
+                const ground = carteDuNiveau.createLayer(
+                    "ground",
+                    tilesetGround,
+                );
+
+                const wet = carteDuNiveau.createLayer(
+                    "wet",
+                    tilesetGround,
+                );
+
+                const hot = carteDuNiveau.createLayer(
+                    "hot",
+                    tilesetGround,
+                );
+
+                const collideEnemy = carteDuNiveau.createLayer(
+                    "collideEnemy",
+                    tilesetGround,
+                );
+
+                const finJeu = carteDuNiveau.createLayer(
+                    "finJeu",
+                    tilesetGround,
+                );
+
+
+        //sounds
+      
+        this.music = this.sound.add("music", { loop: true, mute: false, volume: 0.5, rate: 1, delay: 0 });
+        this.music.play()        
+        
+        this.jump = this.sound.add("jump", { loop: false, mute: false, volume: 0.1, rate: 1, delay: 0 });
+
+        
+        
+
+        
+
+                this.animNormal = true
+                this.animPlane = false
+                this.animBoat = false
+                this.animShield = false
+                this.transfo = false
+                this.plane = false
+                this.boat = false
+                this.shield = false
+
+                this.hasPlane = false
+                this.hasBoat = false
+                this.hasShield = false
+
+
+                this.protectWet = false
+                this.protectHot = false
+
+                this.pv = 1
+                this.compteurInvuln = 120
+                this.invuln = false
+
+                this.blockMovment = false
+
+                this.compteurTruc = 10
+                this.truc = false
+
+
+                carteDuNiveau.getObjectLayer('spawnJoueur').objects.forEach((spawnJoueur) => {
+                    this.spawnXSortieScene = spawnJoueur.x,
+                        this.spawnYSortieScene = spawnJoueur.y
+                    this.saveX = spawnJoueur.x
+                    this.saveY = spawnJoueur.y
+                });
+
+
+                //player
+
+                this.player = this.physics.add.sprite(this.spawnXSortieScene, this.spawnYSortieScene,'kiwi').setScale(0.6);
+                this.player.setSize(96, 96);
+                this.player.setOffset(16, 32);
+
+
+                this.physics.add.collider(this.player, ground);
+                ground.setCollisionByProperty({ estSolide: true });
+
+                this.physics.add.collider(this.player, finJeu,this.startEndScene,null,this);     
+                finJeu.setCollisionByProperty({ finJeu: true });
+
+
+                this.physics.add.collider(this.player, wet, this.testKill, null, this)
+                wet.setCollisionByProperty({ estSolide: true });
+
+                this.physics.add.collider(this.player, hot, this.Kill, null, this)
+                hot.setCollisionByProperty({ estSolide: true });
+
+                collideEnemy.setCollisionByProperty({ collideEnemyy: true });
+                collideEnemy.setCollisionByProperty({ finJeu: true });
+
+
+
+                this.barrehp = this.add.sprite(100, 40, 'health_bar anim').setScale(2)
+                this.barrehp.setScrollFactor(0)
+
+                this.barrehp.setInteractive()
+
+                //animations
+
+
+                this.anims.create({
+                    key: 'up',
+                    frames: this.anims.generateFrameNumbers('kiwi', { start: 7, end: 7 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+                this.anims.create({
+                    key: 'left',
+                    frames: this.anims.generateFrameNumbers('kiwi', { start: 0, end: 7 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+                this.anims.create({
+                    key: 'turn',
+                    frames: this.anims.generateFrameNumbers('kiwi', { start: 8, end: 14 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+                this.anims.create({
+                    key: 'right',
+                    frames: this.anims.generateFrameNumbers('kiwi', { start: 15, end: 22 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+
+                this.anims.create({
+                    key: 'planeLeft',
+                    frames: this.anims.generateFrameNumbers('plane', { start: 10, end: 13 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+                this.anims.create({
+                    key: 'planeTurn',
+                    frames: this.anims.generateFrameNumbers('plane', { start: 4, end: 9 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+                this.anims.create({
+                    key: 'planeRight',
+                    frames: this.anims.generateFrameNumbers('plane', { start: 0, end: 3 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+                this.anims.create({
+                    key: 'boatRight',
+                    frames: this.anims.generateFrameNumbers('boat', { start: 0, end: 3 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+                this.anims.create({
+                    key: 'boatTurn',
+                    frames: this.anims.generateFrameNumbers('boat', { start: 4, end: 7 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+                this.anims.create({
+                    key: 'boatLeft',
+                    frames: this.anims.generateFrameNumbers('boat', { start: 8, end: 11 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+
+                this.anims.create({
+                    key: 'shieldRight',
+                    frames: this.anims.generateFrameNumbers('shield', { start: 0, end: 3 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+                this.anims.create({
+                    key: 'shieldTurn',
+                    frames: this.anims.generateFrameNumbers('shield', { start: 4, end: 7 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+                this.anims.create({
+                    key: 'shieldLeft',
+                    frames: this.anims.generateFrameNumbers('shield', { start: 8, end: 11 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+
+
+                this.anims.create({
+                    key: 'mouseAnim',
+                    frames: this.anims.generateFrameNumbers('mouse', { start: 0, end: 3 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+                this.anims.create({
+                    key: 'batAnim',
+                    frames: this.anims.generateFrameNumbers('bat', { start: 0, end: 4 }),
+                    frameRate: 8,
+                    repeat: -1
+                });
+
+                this.anims.create({
+                    key: 'manAnim',
+                    frames: this.anims.generateFrameNumbers('man', { start: 0, end: 10 }),
+                    frameRate: 3,
+                    repeat: -1
+                });
+
+
+                this.anims.create({
+                    key: 'hpFrame3',
+                    frames: [{key: 'health_bar anim',  frame: 0 }],
+                    frameRate:  20,
+                });
+                this.anims.create({
+                    key: 'hpFrame2',
+                    frames: [{key: 'health_bar anim',  frame: 1 }],
+                    frameRate:  20,
+                });
+                this.anims.create({
+                    key: 'hpFrame1',
+                    frames: [{key: 'health_bar anim',  frame: 2 }],
+                    frameRate:  20,
+                });
+                this.anims.create({
+                    key: 'hpFrame0',
+                    frames: [{key: 'health_bar anim',  frame: 3 }],
+                    frameRate:  20,
+                });
+
+
+
+                //power ups
+                this.boatPowerUp = this.physics.add.sprite(2340, 2995, 'boatPower').setScale(0.5);
+                this.physics.add.collider(this.boatPowerUp, ground);
+                this.physics.add.collider(this.player, this.boatPowerUp, this.addBoat, null, this);
+
+                this.planePowerUp = this.physics.add.sprite(404, 2079, 'planePower').setScale(0.5);
+                this.physics.add.collider(this.planePowerUp, ground);
+                this.physics.add.collider(this.player, this.planePowerUp, this.addPlane, null, this);
+
+
+                this.shieldPowerUp = this.physics.add.sprite(13343, 1743, 'shieldPower').setScale(0.5);
+                this.physics.add.collider(this.shieldPowerUp, ground);
+                this.physics.add.collider(this.player, this.shieldPowerUp, this.addShield, null, this);
+
+
+
+                //ennemies
+
+                this.mob = this.physics.add.group({ collideWorldBounds: true });
+
+                this.mouse = this.physics.add.group({ collideWorldBounds: true });
+                this.bat = this.physics.add.group({ collideWorldBounds: true });
+                this.man = this.physics.add.group({ collideWorldBounds: true });
+
+
+                carteDuNiveau.getObjectLayer('spawnEnemy').objects.forEach((spawnEnemy) => {
+                    if (spawnEnemy.type == "Mouse") {
+                        this.test = this.mouse.create(spawnEnemy.x, spawnEnemy.y,'mouse').setSize(128, 64).setOffset(0, 16);
+                        this.test.setBounce(1)
+                        this.test.body.setAllowGravity(false)
+
+                    } else if (spawnEnemy.type == "Bat") {
+                        this.test2 = this.bat.create(spawnEnemy.x, spawnEnemy.y,'bat').setSize(144, 112).setOffset(0, 0);
+                        this.test2.setBounce(1)
+                        this.test2.body.setAllowGravity(false)
+                    }
+                    
+                    else if(spawnEnemy.type == "Man"){
+                        this.test3 = this.man.create(spawnEnemy.x, spawnEnemy.y,'man').setSize(70 , 128).setOffset(64, 0).setScale(0.8);
+                    }
+
+                });
+
+                this.mouse.setVelocityX(120)
+                this.physics.add.collider(this.mouse, ground)
+                this.physics.add.collider(this.mouse, collideEnemy)
+
+                this.bat.setVelocityY(120)
+                this.physics.add.collider(this.bat, ground)
+                this.physics.add.collider(this.bat, collideEnemy)
+
+                this.physics.add.collider(this.man, ground)
+
+                collideEnemy.alpha = 0
+                finJeu.alpha = 0
+
+                this.physics.add.overlap(this.player, this.bat,this.hitEnemy,null,this)
+                this.physics.add.overlap(this.player, this.mouse,this.hitEnemy,null,this)
+                this.physics.add.overlap(this.player, this.man,this.hitEnemy,null,this)
+
+
+                //Checkpoints
+
+                this.checkpoints = this.physics.add.group({ allowGravity: false });
+
+                carteDuNiveau.getObjectLayer('checkpoints').objects.forEach((ckpt) => {
+                    const checkpoint = this.checkpoints.create(ckpt.x, ckpt.y, 'none').setSize(128, 64).setOffset(0, 16);
+                    checkpoint.setAlpha(0);
+                    checkpoint.setSize(200, 200);
+
+                });
+
+
+                this.physics.add.overlap(this.player, this.checkpoints, this.savePosition, null, this)
+
+
+
+                //build.setCollisionByProperty({ estSolide: true });
+                this.player.setCollideWorldBounds(true);
+                this.cameras.main.zoom = 1;
+                this.physics.world.setBounds(0, 0, 14512, 3296);
+                this.cameras.main.setBounds(0, 0, 14512, 3296);
+                this.cameras.main.startFollow(this.player);
+
+
+
+
+                this.cursors = this.input.keyboard.createCursorKeys();
+                this.keys = this.input.keyboard.addKeys({
+                    
+                    o: Phaser.Input.Keyboard.KeyCodes.O,
+                    k: Phaser.Input.Keyboard.KeyCodes.K,
+                    m: Phaser.Input.Keyboard.KeyCodes.M,
+                   
+                    q: Phaser.Input.Keyboard.KeyCodes.Q,
+                    s: Phaser.Input.Keyboard.KeyCodes.S,
+                    d: Phaser.Input.Keyboard.KeyCodes.D,
+                    z: Phaser.Input.Keyboard.KeyCodes.Z,
+                });
+            }
+
+
+
+            update() {
+
+                //animation
+
+                this.mouse.children.iterate((child) => {
+                child.anims.play('mouseAnim', true);
+
+                if (child.body.velocity.x > 0){
+                    child.flipX = true
+                }
+                if (child.body.velocity.x < 0){
+                    child.flipX = false
+                }
+                });
+
+                this.bat.children.iterate((child) => {
+                child.anims.play('batAnim', true);
+                
+                });   
+            
+                this.man.children.iterate((child) => {
+                child.anims.play('manAnim', true);
+
+                if (child.anims.currentFrame.index == 1){
+                    child.setOffset(80,0)
+                }
+                if (child.anims.currentFrame.index == 2){
+                    child.setOffset(40,0)
+                }
+                if (child.anims.currentFrame.index == 3){
+                    child.setOffset(20,0)
+                }
+                if (child.anims.currentFrame.index == 4){
+                    child.setOffset(35,0)
+                }
+                if (child.anims.currentFrame.index == 5){
+                    child.setOffset(70,0)
+                }
+                if (child.anims.currentFrame.index == 6){
+                    child.setOffset(80,0)
+                }
+                if (child.anims.currentFrame.index == 7){
+                    child.setOffset(110,0)
+                }
+                if (child.anims.currentFrame.index == 8){
+                    child.setOffset(140,0)
+                }
+                if (child.anims.currentFrame.index == 9){
+                    child.setOffset(170,0)
+                }
+                if (child.anims.currentFrame.index == 10){
+                    child.setOffset(140,0)
+                }
+                if (child.anims.currentFrame.index == 11){
+                    child.setOffset(110,0)
+                }
+              
+                    
+                });
+
+                console.log(this.pv)
+
+                //control
+
+                this.moveUp = Phaser.Input.Keyboard.JustDown(this.cursors.up)
+                this.moveLeft = (this.cursors.left.isDown || this.keys.k.isDown)
+                this.moveRight = (this.cursors.right.isDown || this.keys.m.isDown)
+                this.moveUp = (this.cursors.up.isDown || this.keys.o.isDown)
+
+                this.toucheBoat = Phaser.Input.Keyboard.JustDown(this.keys.q)
+                this.touchePlane = Phaser.Input.Keyboard.JustDown(this.keys.s)
+                this.toucheShield = Phaser.Input.Keyboard.JustDown(this.keys.d)
+                this.toucheReset = Phaser.Input.Keyboard.JustDown(this.keys.z)
+
+
+
+                if (this.animNormal == true) {
+                    this.animLeft = 'left'
+                    this.animTurn = 'turn'
+                    this.animRight = 'right'
+
+                }
+
+                if (this.animPlane == true) {
+                    this.animLeft = 'planeLeft'
+                    this.animTurn = 'planeTurn'
+                    this.animRight = 'planeRight'
+
+                }
+
+                if (this.animBoat == true) {
+                    this.animLeft = 'boatLeft'
+                    this.animTurn = 'boatTurn'
+                    this.animRight = 'boatRight'
+
+                }
+
+                if (this.animShield == true) {
+                    this.animRight = 'shieldRight'
+                    this.animTurn = 'shieldTurn'
+                    this.animLeft = 'shieldLeft'
+                }
+
+                if (this.blockMovment == false){
+
+                if (this.touchePlane && this.hasPlane) {
+                    this.plane = true
+                    this.boat = false
+                    this.shield = false
+                    this.animNormal = false
+                    this.animPlane = true
+                    this.transfo = true
+                    this.animBoat = false
+                    this.animShield = false
+                    this.protectWet = false
+                    this.protectHot = false
+                }
+
+                if (this.toucheReset) {
+                    this.plane = false
+                    this.boat = false
+                    this.shield = false
+                    this.animPlane = false
+                    this.animNormal = true
+                    this.transfo = false
+                    this.animBoat = false
+                    this.animShield = false
+                    this.protectWet = false
+                    this.protectHot = false
+                }
+
+                if (this.toucheBoat && this.hasBoat) {
+                    this.protectWet = true
+                    this.protectHot = false
+                    this.plane = false
+                    this.boat = true
+                    this.shield = false
+                    this.animPlane = false
+                    this.animNormal = false
+                    this.animBoat = true
+                    this.animShield = false
+                    this.transfo = true
+                }
+
+                if (this.toucheShield && this.hasShield) {
+                    this.protectWet = true
+                    this.protectHot = true
+                    this.plane = false
+                    this.boat = false
+                    this.shield = true
+                    this.animPlane = false
+                    this.animNormal = false
+                    this.animBoat = false
+                    this.animShield = true
+                    this.transfo = true
+                }
+
+
+
+
+                if (this.boat == true) {
+
+                    if (this.moveLeft) {
+                        this.player.direction = 'left';
+                        this.player.setVelocityX(-200);
+                        this.player.anims.play(this.animLeft, true);
+                    }
+                    else if (this.moveRight) {
+                        this.player.direction = 'right';
+                        this.player.setVelocityX(200);
+                        this.player.anims.play(this.animRight, true);
+                    }
+                    else {
+                        this.player.setVelocityX(0);
+                        this.player.anims.play(this.animTurn, true);
+                    }
+
+                }
+
+
+                if (this.shield == true) {
+
+                    if (this.moveLeft) {
+                        this.player.direction = 'left';
+                        this.player.setVelocityX(-200);
+                        this.player.anims.play(this.animLeft, true);
+                    }
+                    else if (this.moveRight) {
+                        this.player.direction = 'right';
+                        this.player.setVelocityX(200);
+                        this.player.anims.play(this.animRight, true);
+                    }
+                    else {
+                        this.player.setVelocityX(0);
+                        this.player.anims.play(this.animTurn, true);
+
+                    }
+
+                }
+
+
+
+                if (this.plane == true) {
+                    this.player.setVelocityY(60);
+
+                    if (this.moveLeft) {
+                        this.player.direction = 'left';
+                        this.player.setVelocityX(-300);
+                        this.player.anims.play(this.animLeft, true);
+                    }
+                    else if (this.moveRight) {
+                        this.player.direction = 'right';
+                        this.player.setVelocityX(300);
+                        this.player.anims.play(this.animRight, true);
+                    }
+                    else {
+                        this.player.setVelocityX(0);
+                        this.player.anims.play(this.animTurn, true);
+                    }
+
+                    if (this.player.body.blocked.down) {
+                        this.plane = false
+                        this.animPlane = false
+                        this.animNormal = true
+                        this.transfo = false
+                        this.protectWet = false
+                        this.protectHot = false
+                    }
+
+                }
+
+
+
+
+                if (this.transfo == false) {
+
+                    if (this.moveUp && this.player.body.blocked.down) {
+                        this.player.setVelocityY(-600);
+                        this.jump.play();
+                        this.jump.play('volume', {volume: 0.1});
+
+                    }
+                    if (this.moveLeft) {
+                        this.player.direction = 'left';
+                        this.player.setVelocityX(-300);
+                        this.player.anims.play(this.animLeft, true);
+                    }
+                    else if (this.moveRight) {
+                        this.player.direction = 'right';
+                        this.player.setVelocityX(300);
+                        this.player.anims.play(this.animRight, true);
+                    }
+                    else {
+                        this.player.setVelocityX(0);
+                        this.player.anims.play(this.animTurn, true);
+                    }
+                }
+            }
+
+                if (this.pv == 0){
+                    this.blockMovment = true
+                    this.player.setVelocityX(0)
+                    this.player.anims.play(this.animTurn, true);
+                    this.respawn()
+                    this.player.alpha -= 0.02
+                }
+
+                if (this.invuln == true){
+                    this.compteurInvuln --
+                    if (this.compteurInvuln == 0){
+                        this.compteurInvuln = 120
+                        this.invuln = false
+                        this.player.setTint(0xffffff)
+                    }
+                }
+
+                if (this.truc == true){
+                    this.compteurTruc --
+                    if (this.player.body.velocity.x > 0){
+                        this.player.setVelocityX(-750)
+                    }
+                    if (this.player.body.velocity.x < 0){
+                        this.player.setVelocityX(750)
+                    }
+                    if (this.player.body.velocity.x == 0){
+                        this.player.setVelocityX(-750)
+                    }
+                    if (this.compteurTruc == 0){
+                        this.compteurTruc = 10
+                        this.truc = false
+                    }
+                }
+
+                this.vie()
+            }
+
+            hitEnemy(player,enemy){
+                if (this.invuln == false){
+                    this.pv --
+                    this.invuln = true
+                    
+                    this.truc = true
+                    
+                    player.setTint(0xff0000)
+                    this.cameras.main.shake(400,0.004)
+
+        
+                }
+            }
+
+            testKill(player, wet) {
+                if (this.protectWet == false) {
+                    // this.scene.restart()
+                    this.blockMovment = true
+                    this.respawn()
+                    player.setVelocityX(0)
+                    player.anims.play(this.animTurn, true);
+                    player.setTint(0x00ffff)
+                    player.alpha -= 0.02
+
+                }
+
+            }
+
+            Kill(player, hot) {
+                if (this.protectHot == false) {
+                    // this.scene.restart()
+                    this.blockMovment = true
+                    this.respawn()
+                    player.setVelocityX(0)
+                    player.anims.play(this.animTurn, true);
+                    player.setTint(0xff0000)
+                    player.alpha -= 0.02
+
+                }
+
+
+
+            }
+
+            savePosition(player, checkpoint) {
+                this.saveX = checkpoint.x
+                this.saveY = checkpoint.y
+            }
+
+            respawn() {
+                setTimeout(() => {
+                    this.pv = 3
+                    this.player.x = this.saveX
+                    this.player.y = this.saveY
+                    this.blockMovment = false
+                    this.player.setTint(0xffffff)
+                    this.player.alpha = 1
+                }, 1000);
+
+            }
+
+
+
+    //Pouvoirs                
+            addBoat(player, power) {
+                power.destroy();
+                this.hasBoat = true
+            }
+
+            addPlane(player, power) {
+                power.destroy();
+                this.hasPlane = true
+            }
+
+            addShield(player, power) {
+                power.destroy();
+                this.hasShield = true
+            }
+
+            vie(){
+                if (this.pv == 3){
+                    this.barrehp.anims.play('hpFrame3', true);
+                }
+                if (this.pv == 2){
+                    this.barrehp.anims.play('hpFrame2', true);
+                }
+                if (this.pv == 1){
+                    this.barrehp.anims.play('hpFrame1', true);
+                }
+                if (this.pv == 0){
+                    this.barrehp.anims.play('hpFrame0', true);
+                    
+                }
+                    
+            }
+
+            startEndScene(player,finJeu){
+                this.scene.start("sceneFin", {})
+            }
+
+        }
+
+
+
+        class sceneFin extends Phaser.Scene{
+            constructor(){
+            super("sceneFin");
+        }
+
+        preload(){
+            
+            this.load.image("ecranFin", "assets/ecranFin.png");
+            this.load.image("restart", "assets/bouttonRestart.png");
+
+        }
+        create(){
+            const carte = this.make.tilemap({ key: 'carte' });
+
+
+        this.add.image(this.cameras.main.width/2,this.cameras.main.height/2,"ecranFin").setScale(0.65);
+
+        this.cursors = this.input.keyboard.createCursorKeys();
+
+        this.boutonrestart = this.add.image(this.cameras.main.width/1.4, this.cameras.main.height/2,'restart').setScale(0.5).setInteractive();
+
+        this.boutonrestart.on('pointerdown', function (pointer) {
+                this.scene.scene.start("menuDebut")
+        
+    });
+
+
+        }
+    }
+
+
+        var config = {
+            pixelArt: true,
+            type: Phaser.AUTO,
+            width: 1200, height: 600,
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 1000 },
+                    debug: false
+                }
+            },
+            scene: [menuDebut, Jeu, sceneFin], 
+            input: { gamepad: true },
+        };
+
+        new Phaser.Game(config);
+    </script>
+
+    <div id="endGame">GAME OVER</div>
+
+    </script>
+</body>
+
+</html>
